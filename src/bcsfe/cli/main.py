@@ -87,7 +87,6 @@ class Main:
 
     def print_start_text(self):
         external_theme = core.ExternalThemeManager.get_external_theme_config()
-        external_locale = core.ExternalLocaleManager.get_external_locale_config()
         if external_theme is None:
             theme_text = core.core_data.local_manager.get_key(
                 "theme_text",
@@ -110,30 +109,9 @@ class Main:
                 ),
                 escape=False,
             )
-        if external_locale is None:
-            authors = core.core_data.local_manager.authors
-            locale_text = core.core_data.local_manager.get_key(
-                "default_locale_text_authors",
-                path=core.core_data.local_manager.path,
-                authors=", ".join(authors),
-                name=core.core_data.local_manager.name,
-                escape=False,
-            )
-        else:
-            locale_text = core.core_data.local_manager.get_key(
-                "locale_text",
-                locale_name=external_locale.name,
-                locale_version=external_locale.version,
-                locale_author=external_locale.author,
-                locale_path=core.LocalManager.get_locale_folder(
-                    external_locale.get_full_name()
-                ),
-                escape=False,
-            )
         color.color_print_key(
             "welcome",
             config_path=core.core_data.config.get_config_path(),
-            locale_text=locale_text,
             theme_text=theme_text,
             escape=False,
         )

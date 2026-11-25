@@ -30,6 +30,8 @@ way; it just adds a few new features and bug fixes.
 ### Game data
 
 - Game data now comes from [BCData-Auto](https://github.com/SploeCyber/BCData-Auto) by default.
+- You can pick the game data version to use from `Editor` -> `Game data version`, which lists
+every version the data repository publishes (`Auto` matches your save file).
 
 ### Bug fixes
 
@@ -174,8 +176,7 @@ If you do get banned, `Account` -> `Unban account` (or just re-uploading the sav
 - **Beeven** ([beeven/battlecats](https://github.com/beeven/battlecats)) and **csehydrogen**
   ([csehydrogen/BattleCatsHacker](https://github.com/csehydrogen/BattleCatsHacker)) — open source
   code that helped figure out how to patch save data.
-- **HungJoesifer** — Vietnamese localization and the `discord` theme.
-- **LinYuAn** — Traditional Chinese localization.
+- **HungJoesifer** — the `discord` theme.
 - Everyone who donated saves for testing.
 
 BCSFE-Extended changes by [SploeCyber](https://github.com/SploeCyber).

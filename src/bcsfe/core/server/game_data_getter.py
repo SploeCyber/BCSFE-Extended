@@ -19,16 +19,32 @@ class GameDataGetter:
         self, cc: core.CountryCode, gv: core.GameVersion, do_print: bool = True
     ):
         self.print = do_print
-        self.lang = core.core_data.config.get_str(core.ConfigKey.LOCALE)
+        self.lang = "en"
         self.cc = cc.get_cc_lang()
         self.real_cc = cc
         self.gv = gv
         self.cc = self.cc if not self.cc.is_lang() else self.real_cc
-        self.version, exact_match = self.find_gv(self.cc, gv)
 
         self.all_versions = None
         self.url = None
         self.filepath = None
+
+        forced_version = core.core_data.config.get_str(
+            core.ConfigKey.GAME_DATA_VERSION
+        ).strip()
+        if forced_version and forced_version.lower() != "auto":
+            self.version = forced_version
+            self.metadata = GameDataGetter.get_metadata()
+            if self.metadata is None:
+                return
+            self.all_versions = GameDataGetter.get_versions(self.metadata)
+            self.url = self.metadata.get("base_url")
+            self.filepath = self.all_versions.get(self.cc.get_code(), {}).get(
+                forced_version
+            )
+            return
+
+        self.version, exact_match = self.find_gv(self.cc, gv)
 
         if exact_match:
             return

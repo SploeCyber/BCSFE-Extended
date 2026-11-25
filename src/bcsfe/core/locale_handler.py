@@ -1,24 +1,21 @@
 from __future__ import annotations
-import dataclasses
-import tempfile
+
 from typing import Any
+
 from bcsfe import core
-from bcsfe.cli import color
 
 
 class PropertySet:
-    """Represents a set of properties in a property file."""
+    """Represents a set of properties in an English property file."""
 
-    def __init__(self, locale: str, property: str):
+    def __init__(self, property: str):
         """Initializes a new instance of the PropertySet class.
 
         Args:
-            locale (str): Language code of the locale.
             property (str): Name of the property file.
         """
-        self.locale = locale
         self.property = property
-        self.path = LocalManager.get_locale_folder(locale).add(property + ".properties")
+        self.path = LocalManager.get_locale_folder().add(property + ".properties")
         self.properties: dict[str, tuple[str, str]] = {}
         self.parse()
 
@@ -86,192 +83,24 @@ class PropertySet:
             self.properties.get(key, key)[0].replace("\\n", "\n").replace("\\t", "\t")
         )
 
-    @staticmethod
-    def from_config(property: str) -> PropertySet:
-        """Gets a PropertySet from the language code in the config.
-
-        Args:
-            property (str): Name of the property file.
-
-        Returns:
-            PropertySet: PropertySet for the property file.
-        """
-        return PropertySet(
-            core.core_data.config.get_str(core.ConfigKey.LOCALE), property
-        )
-
 
 class LocalManager:
-    """Manages properties for a locale"""
+    """Manages the editor's English UI text."""
 
-    def __init__(self, locale: str | None = None):
-        """Initializes a new instance of the LocalManager class.
-
-        Args:
-            locale (str): Language code of the locale.
-        """
-        if locale is None:
-            lc = core.core_data.config.get_str(core.ConfigKey.LOCALE)
-        else:
-            lc = locale
-
-        self.locale = lc
-        self.path = LocalManager.get_locale_folder(lc)
+    def __init__(self):
+        """Initializes a new instance of the LocalManager class."""
+        self.path = LocalManager.get_locale_folder()
         self.properties: dict[str, PropertySet] = {}
         self.all_properties: dict[str, tuple[str, str]] = {}
-        self.en_properties: dict[str, tuple[str, str]] = {}
-        self.en_properties_path = LocalManager.get_locale_folder("en")
-        self.authors: list[str] = ["fieryhenry"]
-        self.name: str = "English"
         self.parse()
-        if self.locale == "en":
-            self.en_properties = self.all_properties
-
-        if core.core_data.config.get_bool(core.ConfigKey.SHOW_MISSING_LOCALE_KEYS):
-            key = self.get_key("missing_locale_keys")
-            print(key)
-            print()
-            missing = self.get_missing_keys()
-            missing.sort(key=lambda i: i[0])
-            missing.sort(key=lambda i: i[2])
-            for key in missing:
-                print(f"{key[2]}\n{key[0]}={key[1]}\n")
-            if not missing:
-                print(self.get_key("none"))
-
-            print()
-
-            key = self.get_key("extra_locale_keys")
-            print(key)
-            print()
-            extra = self.get_extra_keys()
-            extra.sort(key=lambda i: i[0])
-            extra.sort(key=lambda i: i[2])
-            for key in extra:
-                print(f"{key[2]}\n{key[0]}={key[1]}\n")
-            if not extra:
-                print(self.get_key("none"))
-
-            print()
-
-            key = self.get_key("modified_locale_keys")
-            print(key)
-            print()
-            modified = self.get_modified_keys()
-            modified.sort(key=lambda i: i[0])
-            modified.sort(key=lambda i: i[2])
-            for key in modified:
-                print(f"{key[2]}\n{key[0]}={key[1]}")
-                keystr = "},{".join(key[4])
-                print(f"current value: {key[5]}")
-                print(f"{key[3]} args: {{{keystr}}}")
-                print()
-            if not modified:
-                print(self.get_key("none"))
-
-    def get_missing_keys(self) -> list[tuple[str, str, str]]:
-        missing = set(self.en_properties.keys()) - set(self.all_properties.keys())
-
-        return [
-            (
-                key,
-                self.en_properties[key][0],
-                self.en_properties[key][1] + ".properties",
-            )
-            for key in missing
-        ]
-
-    def get_modified_keys(self) -> list[tuple[str, str, str, str, list[str], str]]:
-        modified: list[tuple[str, str, str, str, list[str], str]] = []
-        for key in self.en_properties.keys():
-            en_value = self.get_key_recursive(key, {}, properties=self.en_properties)
-            if key not in self.all_properties:
-                continue
-            other_value = self.get_key_recursive(key, {})
-
-            en_keys = set(LocalManager.get_kwarg_keys(en_value))
-            other_keys = set(LocalManager.get_kwarg_keys(other_value))
-
-            missing_keys = en_keys - other_keys
-            extra_keys = other_keys - en_keys
-
-            if missing_keys:
-                modified.append(
-                    (
-                        key,
-                        en_value,
-                        self.en_properties[key][1] + ".properties",
-                        "missing",
-                        list(missing_keys),
-                        other_value,
-                    )
-                )
-            if extra_keys:
-                modified.append(
-                    (
-                        key,
-                        en_value,
-                        self.en_properties[key][1] + ".properties",
-                        "extra",
-                        list(extra_keys),
-                        other_value,
-                    )
-                )
-
-        return modified
-
-    @staticmethod
-    def get_kwarg_keys(value: str) -> list[str]:
-        kwarg_keys: list[str] = []
-        kwarg_key = ""
-        in_key = False
-        for i, char in enumerate(value):
-            if char == "{":
-                if i > 0 and value[i - 1] == "\\":
-                    continue
-                in_key = True
-            elif char == "}":
-                if i > 0 and value[i - 1] == "\\":
-                    continue
-                in_key = False
-                kwarg_keys.append(kwarg_key)
-                kwarg_key = ""
-            elif in_key:
-                kwarg_key += char
-        return kwarg_keys
-
-    def get_extra_keys(self) -> list[tuple[str, str, str]]:
-        extra = set(self.all_properties.keys()) - set(self.en_properties.keys())
-
-        return [
-            (
-                key,
-                self.all_properties[key][0],
-                self.all_properties[key][1] + ".properties",
-            )
-            for key in extra
-        ]
 
     def parse(self):
         """Parses all property files in the locale folder recursively."""
         for file in self.path.glob("**/*.properties", recursive=True):
             file_name = file.strip_path_from(self.path).path
-            property_set = PropertySet(self.locale, file_name[:-11])
+            property_set = PropertySet(file_name[:-11])
             self.all_properties.update(property_set.properties)
             self.properties[file_name[:-11]] = property_set
-
-        metadata_path = self.path.add("metadata.json")
-
-        if metadata_path.exists():
-            data = core.JsonFile.from_path(metadata_path).as_object()
-            self.authors = data.get("authors") or ["fieryhenry"]
-            self.name = data.get("name") or "English"
-
-        if self.locale != "en":
-            for file in self.en_properties_path.glob("**/*.properties", recursive=True):
-                file_name = file.strip_path_from(self.en_properties_path).path
-                property_set = PropertySet("en", file_name[:-11])
-                self.en_properties.update(property_set.properties)
 
     def get_key(self, key: str, escape: bool = True, **kwargs: Any) -> str:
         """Gets a key from the property file.
@@ -436,9 +265,7 @@ class LocalManager:
     ) -> str:
         if properties is None:
             properties = self.all_properties
-        value = properties.get(key)
-        if value is None:
-            value = self.en_properties.get(key, (key, key))
+        value = properties.get(key, (key, key))
         value = value[0].replace("\\n", "\n").replace("\\t", "\t")
         # replace {{key}} with the value of the key
         if "{{" not in value:
@@ -488,42 +315,6 @@ class LocalManager:
         return aliases
 
     @staticmethod
-    def from_config() -> LocalManager:
-        """Gets a LocalManager from the language code in the config.
-
-        Returns:
-            LocalManager: LocalManager for the locale.
-        """
-        return LocalManager(core.core_data.config.get_str(core.ConfigKey.LOCALE))
-
-    def check_duplicates(self):
-        """Checks for duplicate keys in all property files.
-
-        Raises:
-            KeyError: If a key is already defined in the property file.
-        """
-        keys: set[str] = set()
-        for property in self.properties.values():
-            for key in property.properties.keys():
-                if key in keys:
-                    raise KeyError(f"Duplicate key {key}")
-                keys.add(key)
-
-    @staticmethod
-    def get_all_locales() -> list[str]:
-        """Gets all locales in the locales folder.
-
-        Returns:
-            list[str]: List of locales.
-        """
-        locales: list[str] = []
-        for folder in LocalManager.get_locales_folder().get_dirs():
-            locales.append(folder.basename())
-        for folder in LocalManager.get_external_locales_folder().get_dirs():
-            locales.append(folder.basename())
-        return locales
-
-    @staticmethod
     def get_locales_folder() -> core.Path:
         """Gets the locales folder.
 
@@ -533,262 +324,10 @@ class LocalManager:
         return core.Path.get_data_folder().add("locales")
 
     @staticmethod
-    def get_external_locales_folder() -> core.Path:
-        """Gets the external locales folder.
+    def get_locale_folder() -> core.Path:
+        """Gets the folder for the English locale.
 
         Returns:
-            core.Path: Path to the external locales folder.
+            core.Path: Path to the English locale folder.
         """
-        return core.Path.get_data_folder().add("external_locales")
-
-    @staticmethod
-    def get_locale_folder(locale: str) -> core.Path:
-        """Gets the folder for a locale.
-
-        Args:
-            locale (str): Language code of the locale.
-
-        Returns:
-            core.Path: Path to the locale folder.
-        """
-        if locale.startswith("ext-"):
-            return LocalManager.get_external_locales_folder().add(locale)
-        return LocalManager.get_locales_folder().add(locale)
-
-    @staticmethod
-    def remove_locale(locale: str):
-        """Removes a locale.
-
-        Args:
-            locale (str): Language code of the locale.
-        """
-        if locale not in LocalManager.get_all_locales():
-            return
-        if locale.startswith("ext-"):
-            extern = ExternalLocaleManager.get_external_locale(locale)
-            if extern is not None:
-                ExternalLocaleManager.delete_locale(extern)
-            LocalManager.get_external_locales_folder().add(locale).remove()
-        else:
-            LocalManager.get_locales_folder().add(locale).remove()
-
-        if core.core_data.config.get_str(core.ConfigKey.LOCALE) == locale:
-            core.core_data.config.set(core.ConfigKey.LOCALE, "en")
-
-
-@dataclasses.dataclass
-class ExternalLocale:
-    short_name: str
-    name: str
-    description: str
-    author: str
-    version: str
-    git_repo: str | None = None
-
-    def to_json(self) -> dict[str, Any]:
-        return dataclasses.asdict(self)
-
-    @staticmethod
-    def from_json(json_data: dict[str, Any]) -> ExternalLocale | None:
-        short_name = json_data.get("short_name")
-        name = json_data.get("name")
-        description = json_data.get("description")
-        author = json_data.get("author")
-        version = json_data.get("version")
-        git_repo = json_data.get("git_repo")
-        if (
-            short_name is None
-            or name is None
-            or description is None
-            or author is None
-            or version is None
-        ):
-            return None
-        return ExternalLocale(
-            short_name,
-            name,
-            description,
-            author,
-            version,
-            git_repo,
-        )
-
-    @staticmethod
-    def from_git_repo(git_repo: str) -> ExternalLocale | None:
-        repo = core.GitHandler().get_repo(git_repo)
-        if repo is None:
-            return None
-        locale_json = repo.get_file(core.Path("locale.json"))
-        if locale_json is None:
-            return None
-        json_data = core.JsonFile.from_data(locale_json).as_object()
-        json_data["git_repo"] = git_repo
-        return ExternalLocale.from_json(json_data)
-
-    def get_new_version(self) -> bool:
-        if self.git_repo is None:
-            return False
-        repo = core.GitHandler().get_repo(self.git_repo)
-        if repo is None:
-            return False
-        with tempfile.TemporaryDirectory() as tmp:
-            temp_dir = core.Path(tmp)
-            success = repo.clone_to_temp(temp_dir)
-            if not success:
-                return False
-            external_locale = ExternalLocaleManager.parse_external_locale(temp_dir)
-            if external_locale is None:
-                return False
-            version = external_locale.version
-
-            if version == self.version:
-                return False
-
-            self.name = external_locale.name
-            self.short_name = external_locale.short_name
-            self.description = external_locale.description
-            self.author = external_locale.author
-            self.version = version
-
-        success = repo.pull()
-        if not success:
-            return False
-        self.save()
-        return True
-
-    def save(self):
-        ExternalLocaleManager.save_locale(self)
-
-    def get_full_name(self) -> str:
-        return f"ext-{self.author}-{self.short_name}"
-
-
-class ExternalLocaleManager:
-    @staticmethod
-    def delete_locale(external_locale: ExternalLocale):
-        if external_locale.git_repo is None:
-            return
-        folder = core.GitHandler.get_repo_folder().add(
-            external_locale.git_repo.split("/")[-1]
-        )
-        folder.remove()
-
-    @staticmethod
-    def save_locale(
-        external_locale: ExternalLocale,
-    ):
-        """Saves an external locale.
-
-        Args:
-            external_locale (ExternalLocale): External locale to save.
-        """
-        if external_locale.git_repo is None:
-            return
-        folder = LocalManager.get_external_locales_folder().add(
-            external_locale.get_full_name()
-        )
-        folder.generate_dirs()
-
-        repo = core.GitHandler().get_repo(external_locale.git_repo)
-        if repo is None:
-            return
-        files_dir = repo.get_folder(core.Path("files"))
-        if files_dir is None:
-            return
-
-        files_dir.copy_tree(folder)
-
-        json_data = external_locale.to_json()
-        folder.add("locale.json").write(core.JsonFile.from_object(json_data).to_data())
-
-    @staticmethod
-    def parse_external_locale(path: core.Path) -> ExternalLocale | None:
-        """Parses an external locale.
-
-        Args:
-            path (core.Path): Path to the external locale.
-
-        Returns:
-            ExternalLocale: External locale.
-        """
-        if not path.exists():
-            return None
-        json_data = core.JsonFile.from_data(path.add("locale.json").read()).as_object()
-        return ExternalLocale.from_json(json_data)
-
-    @staticmethod
-    def update_external_locale(external_locale: ExternalLocale):
-        """Updates an external locale.
-
-        Args:
-            external_locale (ExternalLocale): External locale to update.
-        """
-        if external_locale.git_repo is None:
-            return
-        color.color_print_key(
-            "checking_for_locale_updates",
-            locale_name=external_locale.name,
-        )
-        updated = external_locale.get_new_version()
-        if updated:
-            color.color_print_key(
-                "external_locale_updated",
-                locale_name=external_locale.name,
-                version=external_locale.version,
-            )
-        else:
-            color.color_print_key(
-                "external_locale_no_update",
-                locale_name=external_locale.name,
-                version=external_locale.version,
-            )
-        print()
-
-    @staticmethod
-    def update_all_external_locales(_: Any = None):
-        """Updates all external locales."""
-        dirs = LocalManager.get_external_locales_folder().get_dirs()
-        if not dirs:
-            color.color_print_key(
-                "no_external_locales",
-            )
-            return
-        if not core.GitHandler.is_git_installed():
-            color.color_print_key(
-                "git_not_installed",
-            )
-            return
-        for folder in dirs:
-            locale = ExternalLocaleManager.parse_external_locale(folder)
-            if locale is None:
-                continue
-            ExternalLocaleManager.update_external_locale(locale)
-
-    @staticmethod
-    def get_external_locale_config() -> ExternalLocale | None:
-        """Gets the external locale from the config.
-
-        Returns:
-            ExternalLocale: External locale.
-        """
-
-        locale = core.core_data.config.get_str(core.ConfigKey.LOCALE)
-        if not locale.startswith("ext-"):
-            return None
-        return ExternalLocaleManager.parse_external_locale(
-            LocalManager.get_locale_folder(locale)
-        )
-
-    @staticmethod
-    def get_external_locale(locale: str) -> ExternalLocale | None:
-        """Gets the external locale from the code.
-
-        Returns:
-            ExternalLocale: External locale.
-        """
-
-        if not locale.startswith("ext-"):
-            return None
-        return ExternalLocaleManager.parse_external_locale(
-            LocalManager.get_locale_folder(locale)
-        )
+        return LocalManager.get_locales_folder().add("en")

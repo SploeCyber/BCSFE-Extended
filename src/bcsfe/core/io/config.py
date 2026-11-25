@@ -8,8 +8,6 @@ import requests
 
 class ConfigKey(enum.Enum):
     UPDATE_TO_BETA = "update_to_beta"
-    LOCALE = "locale"
-    SHOW_MISSING_LOCALE_KEYS = "show_missing_locale_keys"
     DISABLE_MAXES = "disable_maxes"
     MAX_BACKUPS = "max_backups"
     THEME = "theme"
@@ -20,6 +18,7 @@ class ConfigKey(enum.Enum):
     STRICT_BAN_PREVENTION = "strict_ban_prevention"
     MAX_REQUEST_TIMEOUT = "max_request_timeout"
     GAME_DATA_REPO = "game_data_repo"
+    GAME_DATA_VERSION = "game_data_version"
     FORCE_LANG_GAME_DATA = "force_lang_game_data"
     CLEAR_TUTORIAL_ON_LOAD = "clear_tutorial_on_load"
     REMOVE_BAN_MESSAGE_ON_LOAD = "remove_ban_message_on_load"
@@ -61,8 +60,6 @@ class Config:
     def get_defaults() -> dict[ConfigKey, Any]:
         initial_values = {
             ConfigKey.UPDATE_TO_BETA: False,
-            ConfigKey.LOCALE: "en",
-            ConfigKey.SHOW_MISSING_LOCALE_KEYS: False,
             ConfigKey.DISABLE_MAXES: False,
             ConfigKey.MAX_BACKUPS: 50,
             ConfigKey.THEME: "default",
@@ -73,6 +70,7 @@ class Config:
             ConfigKey.STRICT_BAN_PREVENTION: False,
             ConfigKey.MAX_REQUEST_TIMEOUT: 30,
             ConfigKey.GAME_DATA_REPO: "https://raw.githubusercontent.com/SploeCyber/BCData-Auto/main/metadata.json",
+            ConfigKey.GAME_DATA_VERSION: "auto",
             ConfigKey.FORCE_LANG_GAME_DATA: False,
             ConfigKey.CLEAR_TUTORIAL_ON_LOAD: True,
             ConfigKey.REMOVE_BAN_MESSAGE_ON_LOAD: True,
@@ -257,126 +255,6 @@ class Config:
         self.set(key, value)
         color.color_print_key("config_success")
 
-    def add_locale(self):
-        all_locales = core.LocalManager.get_all_locales()
-        if not core.GitHandler.is_git_installed():
-            color.color_print_key(
-                "git_not_installed",
-            )
-            return
-        git_repo = color.color_input_key("enter_locale_git_repo").strip()
-        external_locale = core.ExternalLocale.from_git_repo(git_repo)
-        if external_locale is None:
-            color.color_print_key(
-                "invalid_git_repo",
-            )
-            return
-        locale_name = external_locale.get_full_name()
-        if locale_name in all_locales:
-            if not dialog_creator.yes_no_key(
-                "locale_already_exists",
-                locale_name=locale_name,
-            ):
-                color.color_print_key(
-                    "locale_cancelled",
-                )
-                return
-
-        external_locale.save()
-
-        color.color_print_key(
-            "locale_added",
-        )
-        return locale_name
-
-    def remove_locale(self):
-        all_locales = core.LocalManager.get_all_locales()
-        options: list[str] = []
-        for locale in all_locales:
-            if locale.startswith("ext-"):
-                options.append(locale)
-
-        if not options:
-            color.color_print_key(
-                "no_external_locales",
-            )
-            return
-
-        options.append("cancel")
-
-        choices = dialog_creator.multi_select_entries_key(
-            options, dialog="locale_remove_dialog"
-        )
-        if choices is None:
-            return
-        for id, choice in choices:
-            if id == len(options) - 1:
-                return
-            core.LocalManager.remove_locale(choice)
-            color.color_print_key(
-                "locale_removed",
-                locale_name=choice,
-            )
-
-    def new_locale(self) -> str | None:
-        code = dialog_creator.str_input_key("enter_locale_code")
-        if code is None:
-            return None
-
-        author = dialog_creator.str_input_key("enter_author_name")
-        if author is None:
-            return None
-
-        lang_name = dialog_creator.str_input_key("enter_language_name_true")
-
-        if lang_name is None:
-            return None
-
-        metadata = {
-            "authors": [author],
-            "name": f"{lang_name}",
-        }
-
-        path = core.LocalManager.get_locale_folder(code)
-
-        en_path = core.LocalManager.get_locale_folder("en")
-
-        en_path.copy(path)
-
-        core.JsonFile.from_object(metadata).to_file(path.add("metadata.json"))
-
-        color.color_print_key("created_locale_at", path=path)
-
-        return code
-
-    def edit_locale(self):
-        text = self.get_full_input_localized(
-            ConfigKey.LOCALE,
-            self.get_str(ConfigKey.LOCALE),
-            self.get_default(ConfigKey.LOCALE),
-        )
-        color.color_print_key(text)
-        all_locales = core.LocalManager.get_all_locales()
-        value = dialog_creator.single_select_key(
-            dialog_creator.Actions[Optional[str]]
-            .new()
-            .add_new_raw(all_locales, lambda v: all_locales[v])
-            .add_new_key("add_locale", lambda _: self.add_locale())
-            .add_new_key("new_locale", lambda _: self.new_locale())
-            .add_new_key("remove_locale", lambda _: self.remove_locale()),
-            "locale_dialog",
-        )
-        if value is None:
-            return
-        self.set(ConfigKey.LOCALE, value)
-        color.color_print_key(
-            "locale_changed",
-            locale_name=value,
-        )
-        color.color_print_key(
-            "config_success",
-        )
-
     def remove_theme(self):
         themes = core.ThemeHandler.get_all_themes()
         options: list[str] = []
@@ -487,8 +365,6 @@ class Config:
             else:
                 max = None
             core.core_data.config.edit_int(feature, max)
-        elif feature == ConfigKey.LOCALE:
-            core.core_data.config.edit_locale()
         elif feature == ConfigKey.THEME:
             core.core_data.config.edit_theme()
         elif feature == ConfigKey.GAME_DATA_REPO:

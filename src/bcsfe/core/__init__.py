@@ -144,11 +144,7 @@ from bcsfe.core.io.thread_helper import thread_run_many, Thread
 from bcsfe.core.io.yaml import YamlFile
 from bcsfe.core.io.git_handler import GitHandler, Repo
 from bcsfe.core.io.root_handler import RootHandler
-from bcsfe.core.locale_handler import (
-    LocalManager,
-    ExternalLocaleManager,
-    ExternalLocale,
-)
+from bcsfe.core.locale_handler import LocalManager
 from bcsfe.core.log import Logger
 from bcsfe.core.server.event_data import (
     ServerItemData,
@@ -367,7 +363,6 @@ def update_external_content(_: Any = None):
     color.color_print_key("updating_external_content")
     print()
     ExternalThemeManager.update_all_external_themes()
-    ExternalLocaleManager.update_all_external_locales()
     core_data.init_data()
 
     print()
@@ -552,7 +547,6 @@ __all__ = [
     "Enemy",
     "GatyaInfos",
     "YamlFile",
-    "ExternalLocale",
     "ThemeHandler",
     "ExternalTheme",
     "CountryCodeType",
@@ -618,7 +612,6 @@ __all__ = [
     "BattleItems",
     "GameDataGetter",
     "ExternalThemeManager",
-    "ExternalLocaleManager",
     "Config",
     "Logger",
 ]

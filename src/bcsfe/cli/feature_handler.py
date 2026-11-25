@@ -8,6 +8,26 @@ class FeatureHandler:
     def __init__(self, save_file: core.SaveFile):
         self.save_file = save_file
 
+    def select_game_data_version(self):
+        versions = core.GameDataGetter.possible_versions(self.save_file.cc)
+        if not versions:
+            color.color_print_key("failed_to_get_game_versions")
+            return
+        versions.sort(reverse=True)
+        options = [core.localize("game_data_version_auto")] + versions
+        index = dialog_creator.basic_pick_key_index(
+            options, "select_game_data_version"
+        )
+        if index is None:
+            return
+        if index == 0:
+            core.core_data.config.set(core.ConfigKey.GAME_DATA_VERSION, "auto")
+            color.color_print_key("game_data_version_auto_set")
+        else:
+            version = versions[index - 1]
+            core.core_data.config.set(core.ConfigKey.GAME_DATA_VERSION, version)
+            color.color_print_key("game_data_version_set", version=version)
+
     def get_features(self) -> dict[str, Any]:
         cat_features = {"cats": edits.cat_editor.CatEditor.edit_cats}
         if core.core_data.config.get_bool(core.ConfigKey.SEPARATE_CAT_EDIT_OPTIONS):
@@ -142,6 +162,7 @@ class FeatureHandler:
                 "config": core.core_data.config.edit_config,
                 "update_external": core.update_external_content,
                 "manage_game_data": core.manage_game_data,
+                "game_data_version": self.select_game_data_version,
             },
             "exit": main.Main.exit_editor,
         }

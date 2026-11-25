@@ -4,6 +4,20 @@ This changelog starts with the BCSFE-Extended fork. History for upstream release
 earlier) is kept in
 [upstream BCSFE](https://codeberg.org/fieryhenry/BCSFE-Python/src/branch/main/CHANGELOG.md).
 
+## [3.7.1] - 2026-11-25
+
+### Changed
+
+- Removed the multi-language locale system; the editor is now English only. The language config
+option, external locale support and the bundled Traditional Chinese and Vietnamese locales were
+removed.
+
+### Added
+
+- Game data version picker in `Editor` -> `Game data version`, listing the versions published by
+the configured data repository (plus `Auto` to match the save file). A 15.7.0 save can be edited
+with 15.7.1 data even when 15.7.0 data is already downloaded.
+
 ## [3.7.0] - 2026-11-25
 
 First release of BCSFE-Extended, based on upstream BCSFE 3.6.0.
